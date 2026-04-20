@@ -19,6 +19,8 @@ export default function Watchlist() {
   const [phone, setPhone] = useState("");
   const [alertDays, setAlertDays] = useState("5");
   const [saved, setSaved] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState("");
 
   const toggle = (ticker: string) => {
     setWatchlist(prev =>
@@ -26,7 +28,44 @@ export default function Watchlist() {
     );
   };
 
-  const save = () => {
+  const save = async () => {
+    if (!phone) {
+      setError("Please enter your phone number.");
+      return;
+    }
+    if (watchlist.length === 0) {
+      setError("Please select at least one ticker.");
+      return;
+    }
+    setError("");
+    setSending(true);
+
+    const alertThreshold = parseInt(alertDays);
+    const toAlert = STOCKS.filter(
+      s => watchlist.includes(s.ticker) && s.daysOut <= alertThreshold && s.daysOut >= 0
+    );
+
+    if (toAlert.length === 0) {
+      setSaved(true);
+      setSending(false);
+      setTimeout(() => setSaved(false), 3000);
+      return;
+    }
+
+    for (const stock of toAlert) {
+      await fetch("/api/send-alert", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          to: phone,
+          ticker: stock.ticker,
+          daysOut: stock.daysOut,
+          date: stock.date,
+        }),
+      });
+    }
+
+    setSending(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);
   };
@@ -48,7 +87,6 @@ export default function Watchlist() {
         <h1 className="text-3xl font-bold mb-2">Watchlist</h1>
         <p className="text-gray-400 mb-8">Select tickers to watch and set your SMS alert preferences</p>
 
-        {/* Stock Selection */}
         <div className="bg-gray-900 border border-white/10 rounded-xl p-6 mb-6">
           <h2 className="text-lg font-semibold mb-4">Select Tickers</h2>
           <div className="grid grid-cols-2 gap-3">
@@ -69,7 +107,6 @@ export default function Watchlist() {
           </div>
         </div>
 
-        {/* Alert Settings */}
         <div className="bg-gray-900 border border-white/10 rounded-xl p-6 mb-6">
           <h2 className="text-lg font-semibold mb-4">SMS Alert Settings</h2>
           <div className="space-y-4">
@@ -77,7 +114,7 @@ export default function Watchlist() {
               <label className="text-gray-400 text-sm mb-1 block">Your Phone Number</label>
               <input
                 className="w-full bg-gray-800 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-green-400"
-                placeholder="+1 (555) 000-0000"
+                placeholder="+14045551234"
                 value={phone}
                 onChange={e => setPhone(e.target.value)}
                 type="tel"
@@ -96,16 +133,17 @@ export default function Watchlist() {
                 <option value="10">10 days before</option>
               </select>
             </div>
+            {error && <p className="text-red-400 text-sm">{error}</p>}
             <button
               onClick={save}
-              className="w-full bg-green-500 hover:bg-green-400 text-black font-bold py-3 rounded-lg transition-colors"
+              disabled={sending}
+              className="w-full bg-green-500 hover:bg-green-400 disabled:opacity-50 text-black font-bold py-3 rounded-lg transition-colors"
             >
-              {saved ? "✓ Saved!" : "Save Alert Preferences"}
+              {sending ? "Sending alerts..." : saved ? "✓ Saved & Alerts Sent!" : "Save & Send Alerts"}
             </button>
           </div>
         </div>
 
-        {/* Active Watchlist */}
         {watched.length > 0 && (
           <div className="bg-gray-900 border border-white/10 rounded-xl p-6">
             <h2 className="text-lg font-semibold mb-4">Your Watchlist</h2>
