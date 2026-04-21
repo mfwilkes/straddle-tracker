@@ -5,6 +5,14 @@ export default function Analyzer() {
   const [ticker, setTicker] = useState("");
   const [stockPrice, setStockPrice] = useState("");
   const [straddlePrice, setStraddlePrice] = useState("");
+  const [historicalData, setHistoricalData] = useState<null | {
+    quarter: string;
+    actual: number;
+    expected: number | null;
+    reportDate: string;
+  }[]>(null);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [historyError, setHistoryError] = useState("");
   const [result, setResult] = useState<null | {
     expectedMove: number;
     expectedMovePct: number;
@@ -14,6 +22,25 @@ export default function Analyzer() {
     signalColor: string;
     signalReason: string;
   }>(null);
+
+  const fetchHistory = async (t: string) => {
+    if (!t || t.length < 1) return;
+    setLoadingHistory(true);
+    setHistoryError("");
+    setHistoricalData(null);
+    try {
+      const res = await fetch(`/api/historical?ticker=${t}`);
+      const data = await res.json();
+      if (data.error) {
+        setHistoryError(data.error);
+      } else {
+        setHistoricalData(data.moves);
+      }
+    } catch {
+      setHistoryError("Failed to fetch historical data");
+    }
+    setLoadingHistory(false);
+  };
 
   const analyze = () => {
     const stock = parseFloat(stockPrice);
@@ -43,7 +70,12 @@ export default function Analyzer() {
     }
 
     setResult({ expectedMove: straddle, expectedMovePct, upperBreakeven, lowerBreakeven, signal, signalColor, signalReason });
+    fetchHistory(ticker);
   };
+
+  const avgMove = historicalData && historicalData.length > 0
+    ? historicalData.reduce((sum, q) => sum + q.actual, 0) / historicalData.length
+    : null;
 
   return (
     <div className="min-h-screen bg-gray-950 text-white">
@@ -98,7 +130,7 @@ export default function Analyzer() {
         </div>
 
         {result && (
-          <div className="bg-gray-900 border border-white/10 rounded-xl p-6 space-y-4">
+          <div className="bg-gray-900 border border-white/10 rounded-xl p-6 space-y-4 mb-6">
             <div className="flex items-center justify-between border-b border-white/10 pb-4">
               <span className="text-lg font-bold">{ticker} Analysis</span>
               <span className={`font-bold text-lg ${result.signalColor}`}>{result.signal}</span>
@@ -126,6 +158,47 @@ export default function Analyzer() {
             <div className={`text-sm ${result.signalColor} bg-gray-800 rounded-lg p-4`}>
               {result.signalReason}
             </div>
+          </div>
+        )}
+
+        {loadingHistory && (
+          <div className="bg-gray-900 border border-white/10 rounded-xl p-6 text-center text-gray-400">
+            Loading historical data from Polygon...
+          </div>
+        )}
+
+        {historyError && (
+          <div className="bg-gray-900 border border-red-400/20 rounded-xl p-6 text-red-400 text-sm">
+            {historyError}
+          </div>
+        )}
+
+        {historicalData && historicalData.length > 0 && (
+          <div className="bg-gray-900 border border-white/10 rounded-xl p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold">Historical Move Analysis</h2>
+              {avgMove && (
+                <span className="text-sm font-semibold px-3 py-1 rounded-full border text-green-400 bg-green-400/10 border-green-400/30">
+                  Avg move: ±{avgMove.toFixed(1)}%
+                </span>
+              )}
+            </div>
+            <div className="space-y-3">
+              {historicalData.map((q, i) => (
+                <div key={i} className="bg-gray-800 rounded-lg px-4 py-3">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-gray-300 text-sm font-medium">{q.quarter}</span>
+                    <span className="text-green-400 text-xs font-bold">
+                      ±{q.actual}% actual move
+                    </span>
+                  </div>
+                  <div className="text-xs text-gray-500">{q.reportDate}</div>
+                </div>
+              ))}
+            </div>
+            <p className="text-gray-500 text-xs mt-4">
+              Actual price moves around earnings dates via Polygon.io. Past performance does not guarantee future results.
+            </p>
           </div>
         )}
       </div>
