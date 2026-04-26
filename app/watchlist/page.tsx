@@ -15,7 +15,7 @@ const STOCKS = [
 ];
 
 export default function Watchlist() {
-  const [watchlist, setWatchlist] = useState([]);
+  const [watchlist, setWatchlist] = useState<string[]>([]);
   const [phone, setPhone] = useState("");
   const [alertDays, setAlertDays] = useState("5");
   const [saved, setSaved] = useState(false);
