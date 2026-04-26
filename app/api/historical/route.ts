@@ -9,13 +9,6 @@ export async function GET(request: Request) {
   try {
     const apiKey = process.env.POLYGON_API_KEY;
 
-    // Use Polygon's earnings calendar endpoint
-    const earningsRes = await fetch(
-      `https://api.polygon.io/vX/reference/financials?ticker=${ticker}&limit=8&sort=period_of_report_date&order=desc&apiKey=${apiKey}`
-    );
-    const earningsData = await earningsRes.json();
-
-    // Get 2 years of daily price data
     const today = new Date().toISOString().split("T")[0];
     const twoYearsAgo = new Date(Date.now() - 730 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
 
@@ -28,7 +21,6 @@ export async function GET(request: Request) {
       return Response.json({ error: "No price data", debug: priceData }, { status: 404 });
     }
 
-    // Build date -> OHLC map
     const bars: Record<string, { o: number; c: number }> = {};
     for (const bar of priceData.results) {
       const date = new Date(bar.t).toISOString().split("T")[0];
@@ -37,7 +29,6 @@ export async function GET(request: Request) {
 
     const sortedDates = Object.keys(bars).sort();
 
-    // Use known earnings dates for major tickers as fallback
     const knownEarnings: Record<string, string[]> = {
       NVDA: ["2025-02-26", "2024-11-20", "2024-08-28", "2024-05-22", "2024-02-21", "2023-11-21", "2023-08-23", "2023-05-24"],
       AAPL: ["2025-01-30", "2024-10-31", "2024-08-01", "2024-05-02", "2024-02-01", "2023-11-02", "2023-08-03", "2023-05-04"],
