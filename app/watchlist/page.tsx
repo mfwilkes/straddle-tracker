@@ -35,7 +35,7 @@ export default function Watchlist() {
       .catch(() => setLoading(false));
   }, []);
 
-  const toggle = (ticker) => {
+  const toggle = (ticker: string) => {
     setWatchlist(prev =>
       prev.includes(ticker) ? prev.filter(t => t !== ticker) : [...prev, ticker]
     );
