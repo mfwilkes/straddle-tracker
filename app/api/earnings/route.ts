@@ -23,7 +23,7 @@ export async function GET(request: Request) {
     "JPM", "NFLX", "AMD", "GS", "MS", "UBER", "SHOP", "COIN", "PLTR"
   ];
 
-  const allTickers = [...new Set([...DEFAULT_TICKERS, ...extraTickers])];
+  const allTickers = Array.from(new Set([...DEFAULT_TICKERS, ...extraTickers]));
   const apiKey = process.env.FINNHUB_API_KEY;
 
   try {
