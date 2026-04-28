@@ -1,27 +1,15 @@
 "use client";
 import { useState, useEffect } from "react";
 
-const DEFAULT_STOCKS = [
-  { ticker: "AAPL", name: "Apple", date: "2025-05-01", daysOut: 10 },
-  { ticker: "NVDA", name: "NVIDIA", date: "2025-05-28", daysOut: 37 },
-  { ticker: "MSFT", name: "Microsoft", date: "2025-04-30", daysOut: 9 },
-  { ticker: "AMZN", name: "Amazon", date: "2025-05-01", daysOut: 10 },
-  { ticker: "META", name: "Meta", date: "2025-04-30", daysOut: 9 },
-  { ticker: "TSLA", name: "Tesla", date: "2025-04-22", daysOut: 1 },
-  { ticker: "GOOGL", name: "Alphabet", date: "2025-04-29", daysOut: 8 },
-  { ticker: "JPM", name: "JP Morgan", date: "2025-04-11", daysOut: 0 },
-  { ticker: "NFLX", name: "Netflix", date: "2025-04-17", daysOut: 0 },
-  { ticker: "AMD", name: "AMD", date: "2025-04-29", daysOut: 8 },
-  { ticker: "GS", name: "Goldman Sachs", date: "2025-04-14", daysOut: 0 },
-  { ticker: "MS", name: "Morgan Stanley", date: "2025-04-16", daysOut: 0 },
-  { ticker: "UBER", name: "Uber", date: "2025-05-07", daysOut: 16 },
-  { ticker: "SHOP", name: "Shopify", date: "2025-05-07", daysOut: 16 },
-  { ticker: "COIN", name: "Coinbase", date: "2025-05-08", daysOut: 17 },
-  { ticker: "PLTR", name: "Palantir", date: "2025-05-05", daysOut: 14 },
-];
+type Stock = {
+  ticker: string;
+  name: string;
+  date: string;
+  daysOut: number;
+};
 
 export default function Watchlist() {
-  const [stocks, setStocks] = useState(DEFAULT_STOCKS);
+  const [stocks, setStocks] = useState<Stock[]>([]);
   const [watchlist, setWatchlist] = useState<string[]>([]);
   const [phone, setPhone] = useState("");
   const [alertDays, setAlertDays] = useState("5");
@@ -36,17 +24,16 @@ export default function Watchlist() {
   useEffect(() => {
     fetch("/api/watchlist")
       .then(res => res.json())
-      .then(data => {
+      .then(async (data) => {
         if (data.tickers) setWatchlist(data.tickers);
         if (data.phone) setPhone(data.phone);
         if (data.alertDays) setAlertDays(data.alertDays);
-        if (data.customStocks) {
-          setStocks(prev => {
-            const existing = prev.map(s => s.ticker);
-            const newStocks = data.customStocks.filter((s: {ticker: string; name: string; date: string; daysOut: number}) => !existing.includes(s.ticker));
-            return [...prev, ...newStocks];
-          });
-        }
+
+        const customTickers = data.customStocks?.map((s: {ticker: string}) => s.ticker).join(",") || "";
+        const url = customTickers ? `/api/earnings?extra=${customTickers}` : "/api/earnings";
+        const earningsRes = await fetch(url);
+        const earningsData = await earningsRes.json();
+        if (earningsData.stocks) setStocks(earningsData.stocks);
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -62,10 +49,10 @@ export default function Watchlist() {
     setAddingTicker(true);
     setTickerError("");
     try {
-      const res = await fetch(`https://api.polygon.io/v3/reference/tickers/${t}?apiKey=${process.env.NEXT_PUBLIC_POLYGON_API_KEY}`);
+      const res = await fetch(`https://finnhub.io/api/v1/stock/profile2?symbol=${t}&token=${process.env.NEXT_PUBLIC_FINNHUB_API_KEY}`);
       const data = await res.json();
-      const name = data?.results?.name || t;
-      const newStock = { ticker: t, name, date: "TBD", daysOut: 999 };
+      const name = data?.name || t;
+      const newStock: Stock = { ticker: t, name, date: "TBD", daysOut: 999 };
       setStocks(prev => [...prev, newStock]);
       setWatchlist(prev => [...prev, t]);
       setCustomTicker("");
@@ -87,7 +74,7 @@ export default function Watchlist() {
     setError("");
     setSending(true);
 
-    const customStocks = stocks.filter(s => !DEFAULT_STOCKS.find(d => d.ticker === s.ticker));
+    const customStocks = stocks.filter(s => !["AAPL","NVDA","MSFT","AMZN","META","TSLA","GOOGL","JPM","NFLX","AMD","GS","MS","UBER","SHOP","COIN","PLTR"].includes(s.ticker));
 
     await fetch("/api/watchlist", {
       method: "POST",
@@ -166,7 +153,9 @@ export default function Watchlist() {
                   <div className="font-bold">{stock.ticker}</div>
                   <div className="text-xs opacity-60">{stock.name}</div>
                 </div>
-                <span className="text-xs opacity-70">{stock.daysOut === 999 ? "TBD" : `${stock.daysOut}d`}</span>
+                <span className="text-xs opacity-70">
+                  {stock.daysOut === 999 ? "TBD" : stock.daysOut < 0 ? "Reported" : `${stock.daysOut}d`}
+                </span>
               </button>
             ))}
           </div>
@@ -193,7 +182,7 @@ export default function Watchlist() {
             {error && <p className="text-red-400 text-sm">{error}</p>}
             <button onClick={save} disabled={sending}
               className="w-full bg-green-500 hover:bg-green-400 disabled:opacity-50 text-black font-bold py-3 rounded-lg transition-colors">
-              {sending ? "Saving..." : saved ? "Saved!" : "Save Preferences"}
+              {sending ? "Saving..." : saved ? "✓ Saved!" : "Save Preferences"}
             </button>
           </div>
         </div>
@@ -210,7 +199,9 @@ export default function Watchlist() {
                   </div>
                   <div className="flex items-center gap-4">
                     <span className="text-gray-400 text-sm">{stock.date}</span>
-                    <span className="text-gray-300 text-sm">{stock.daysOut === 999 ? "TBD" : `${stock.daysOut}d out`}</span>
+                    <span className="text-gray-300 text-sm">
+                      {stock.daysOut === 999 ? "TBD" : stock.daysOut < 0 ? "Reported" : `${stock.daysOut}d out`}
+                    </span>
                   </div>
                 </div>
               ))}
