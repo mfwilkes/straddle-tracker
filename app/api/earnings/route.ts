@@ -51,8 +51,8 @@ export async function GET(request: Request) {
     // Build results
     const stocks = await Promise.all(allTickers.map(async (ticker) => {
       let name = COMPANY_NAMES[ticker] || ticker;
-      let date = earningsMap[ticker] || "TBD";
-      let daysOut = getDaysOut(date);
+      const date = earningsMap[ticker] || "TBD";
+      const daysOut = getDaysOut(date);
 
       // For custom tickers not in COMPANY_NAMES, fetch name from Finnhub
       if (!COMPANY_NAMES[ticker]) {

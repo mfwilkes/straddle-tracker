@@ -12,7 +12,7 @@ export default function Calendar() {
       .then(res => res.json())
       .then(async (data) => {
         if (data.tickers) setWatchlist(data.tickers);
-        const customTickers = data.customStocks?.map((s: any) => s.ticker).join(",") || "";
+        const customTickers = data.customStocks?.map((s: { ticker: string }) => s.ticker => s.ticker).join(",") || "";
         const url = customTickers ? `/api/earnings?extra=${customTickers}` : "/api/earnings";
         const earningsRes = await fetch(url);
         const earningsData = await earningsRes.json();
