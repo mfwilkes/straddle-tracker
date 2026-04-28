@@ -43,7 +43,7 @@ export default function Watchlist() {
         if (data.customStocks) {
           setStocks(prev => {
             const existing = prev.map(s => s.ticker);
-            const newStocks = data.customStocks.filter((s: { ticker: string }) => !existing.includes(s.ticker) => !existing.includes(s.ticker));
+            const newStocks = data.customStocks.filter((s: {ticker: string; name: string; date: string; daysOut: number}) => !existing.includes(s.ticker));
             return [...prev, ...newStocks];
           });
         }
