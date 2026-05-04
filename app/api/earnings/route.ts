@@ -24,27 +24,51 @@ export async function GET(request: Request) {
   ];
 
   const allTickers = Array.from(new Set([...DEFAULT_TICKERS, ...extraTickers]));
-  const apiKey = process.env.FINNHUB_API_KEY;
+  const finnhubKey = process.env.FINNHUB_API_KEY;
+  const alphaKey = process.env.ALPHAVANTAGE_API_KEY;
 
   try {
     const today = new Date();
     const todayStr = today.toISOString().split("T")[0];
-    const futureDate = new Date(today.getTime() + 90 * 24 * 60 * 60 * 1000);
-    const futureStr = futureDate.toISOString().split("T")[0];
+    const futureStr = new Date(today.getTime() + 90 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
 
-    // Fetch earnings calendar from Finnhub
-    const res = await fetch(
-      `https://finnhub.io/api/v1/calendar/earnings?from=${todayStr}&to=${futureStr}&token=${apiKey}`
+    // Fetch from Finnhub
+    const finnhubRes = await fetch(
+      `https://finnhub.io/api/v1/calendar/earnings?from=${todayStr}&to=${futureStr}&token=${finnhubKey}`
     );
-    const data = await res.json();
+    const finnhubData = await finnhubRes.json();
 
-    // Build map of ticker -> earnings date
     const earningsMap: Record<string, string> = {};
-    if (data.earningsCalendar) {
-      for (const item of data.earningsCalendar) {
+    if (finnhubData.earningsCalendar) {
+      for (const item of finnhubData.earningsCalendar) {
         if (item.symbol && item.date && !earningsMap[item.symbol]) {
           earningsMap[item.symbol] = item.date;
         }
+      }
+    }
+
+    // Find tickers still missing dates
+    const missingTickers = allTickers.filter(t => !earningsMap[t]);
+
+    // Fetch Alpha Vantage earnings calendar for missing tickers
+    if (missingTickers.length > 0 && alphaKey) {
+      try {
+        const avRes = await fetch(
+          `https://www.alphavantage.co/query?function=EARNINGS_CALENDAR&horizon=3month&apikey=${alphaKey}`
+        );
+        const csvText = await avRes.text();
+        const lines = csvText.split("\n").slice(1); // skip header
+        for (const line of lines) {
+          const [symbol, , reportDate] = line.split(",");
+          if (symbol && reportDate && missingTickers.includes(symbol.trim()) && !earningsMap[symbol.trim()]) {
+            const days = getDaysOut(reportDate.trim());
+            if (days >= 0) {
+              earningsMap[symbol.trim()] = reportDate.trim();
+            }
+          }
+        }
+      } catch (e) {
+        console.error("Alpha Vantage error:", e);
       }
     }
 
@@ -54,11 +78,10 @@ export async function GET(request: Request) {
       const date = earningsMap[ticker] || "TBD";
       const daysOut = getDaysOut(date);
 
-      // For custom tickers not in COMPANY_NAMES, fetch name from Finnhub
       if (!COMPANY_NAMES[ticker]) {
         try {
           const r = await fetch(
-            `https://finnhub.io/api/v1/stock/profile2?symbol=${ticker}&token=${apiKey}`
+            `https://finnhub.io/api/v1/stock/profile2?symbol=${ticker}&token=${finnhubKey}`
           );
           const d = await r.json();
           if (d.name) name = d.name;
