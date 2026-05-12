@@ -10,11 +10,11 @@ export default function Privacy() {
         </div>
         <div>
           <h2 className="text-lg font-semibold text-white mb-2">Data We Collect</h2>
-          <p>The only data stored is the app owner's phone number and watchlist preferences, used exclusively to send SMS alerts to the app owner.</p>
+          <p>The only data stored is the app owner&apos;s phone number and watchlist preferences, used exclusively to send SMS alerts to the app owner.</p>
         </div>
         <div>
           <h2 className="text-lg font-semibold text-white mb-2">SMS Messaging</h2>
-          <p>SMS alerts are sent only to the app owner's verified phone number. No third parties receive messages. Message frequency varies based on earnings calendar activity.</p>
+          <p>SMS alerts are sent only to the app owner&apos;s verified phone number. No third parties receive messages. Message frequency varies based on earnings calendar activity.</p>
         </div>
         <div>
           <h2 className="text-lg font-semibold text-white mb-2">Data Sharing</h2>
